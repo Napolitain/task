@@ -28,7 +28,7 @@ func (checker *TimestampChecker) IsUpToDate(t *ast.Task) (bool, error) {
 		return false, nil
 	}
 
-	sources, err := Globs(t.Dir, t.Sources)
+	sources, err := globsWithInfo(t.Dir, t.Sources)
 	if err != nil {
 		return false, nil
 	}
@@ -91,10 +91,7 @@ func (checker *TimestampChecker) IsUpToDate(t *ast.Task) (bool, error) {
 	}
 
 	// Check if any of the source files is newer than the max time of the generates.
-	shouldUpdate, err := anyFileNewerThan(sources, generateMaxTime)
-	if err != nil {
-		return false, nil
-	}
+	shouldUpdate := anyGlobResultNewerThan(sources, generateMaxTime)
 
 	// Modify the metadata of the file to the the current time.
 	if !checker.dry {
@@ -161,6 +158,15 @@ func anyFileNewerThan(files []string, givenTime time.Time) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func anyGlobResultNewerThan(files []globResult, givenTime time.Time) bool {
+	for _, f := range files {
+		if f.info.ModTime().After(givenTime) {
+			return true
+		}
+	}
+	return false
 }
 
 // OnError implements the Checker interface

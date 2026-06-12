@@ -10,6 +10,11 @@ import (
 	"github.com/go-task/task/v3/taskfile/ast"
 )
 
+type globResult struct {
+	path string
+	info os.FileInfo
+}
+
 func Globs(dir string, globs []*ast.Glob) ([]string, error) {
 	resultMap := make(map[string]bool)
 	for _, g := range globs {
@@ -22,6 +27,25 @@ func Globs(dir string, globs []*ast.Glob) ([]string, error) {
 		}
 	}
 	return collectKeys(resultMap), nil
+}
+
+func globsWithInfo(dir string, globs []*ast.Glob) ([]globResult, error) {
+	resultMap := make(map[string]*globResult)
+	for _, g := range globs {
+		matches, err := globWithInfo(dir, g.Glob)
+		if err != nil {
+			continue
+		}
+		for _, match := range matches {
+			if g.Negate {
+				resultMap[match.path] = nil
+				continue
+			}
+			match := match
+			resultMap[match.path] = &match
+		}
+	}
+	return collectGlobResults(resultMap), nil
 }
 
 func glob(dir string, g string) ([]string, error) {
@@ -47,6 +71,33 @@ func glob(dir string, g string) ([]string, error) {
 	return collectKeys(results), nil
 }
 
+func globWithInfo(dir string, g string) ([]globResult, error) {
+	g = filepathext.SmartJoin(dir, g)
+
+	fs, err := execext.ExpandFields(g)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]globResult, len(fs))
+
+	for _, f := range fs {
+		info, err := os.Stat(f)
+		if err != nil {
+			return nil, err
+		}
+		if info.IsDir() {
+			continue
+		}
+		path := filepath.ToSlash(f)
+		results[path] = globResult{
+			path: path,
+			info: info,
+		}
+	}
+	return collectGlobResultValues(results), nil
+}
+
 func collectKeys(m map[string]bool) []string {
 	keys := make([]string, 0, len(m))
 	for k, v := range m {
@@ -57,4 +108,34 @@ func collectKeys(m map[string]bool) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func collectGlobResults(m map[string]*globResult) []globResult {
+	keys := make([]string, 0, len(m))
+	for k, v := range m {
+		if v != nil {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+
+	results := make([]globResult, 0, len(keys))
+	for _, k := range keys {
+		results = append(results, *m[k])
+	}
+	return results
+}
+
+func collectGlobResultValues(m map[string]globResult) []globResult {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	results := make([]globResult, 0, len(keys))
+	for _, k := range keys {
+		results = append(results, m[k])
+	}
+	return results
 }
