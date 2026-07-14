@@ -624,6 +624,24 @@ tasks:
       - go build -o app ./cmd
 ```
 
+#### `cache`
+
+- **Type**: `bool`
+- **Default**: `false`
+- **Description**: Stores generated files by source checksum so previous
+  outputs can be restored. Requires `sources`, `generates`, and the `checksum`
+  method.
+
+```yaml
+tasks:
+  build:
+    cache: true
+    sources: ['**/*.go']
+    generates: ['./app']
+    cmds:
+      - go build -o app ./cmd
+```
+
 #### `status`
 
 - **Type**: `[]string`

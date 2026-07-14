@@ -793,6 +793,29 @@ tasks:
 compare the checksum of the source files to determine if it's necessary to run
 the task. If not, it will just print a message like `Task "js" is up to date`.
 
+Set `cache: true` to retain the files matched by `generates` for each source
+checksum. When Task sees a previous checksum again, it restores those files
+instead of running the task. Caching requires both `sources` and `generates`,
+and `method: checksum` (the default).
+
+```yaml
+version: '3'
+
+tasks:
+  build:
+    cache: true
+    sources:
+      - src/**/*.go
+    generates:
+      - ./app
+    cmds:
+      - go build -o app ./src
+```
+
+Cached archives are stored as
+`<temporary-directory>/cache/<task>/<checksum>.tar.zst`. Cache eviction is not
+currently performed automatically.
+
 `exclude:` can also be used to exclude files from fingerprinting. Sources are
 evaluated in order, so `exclude:` must come after the positive glob it is
 negating.
