@@ -20,6 +20,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-getter v1.8.6
 	github.com/joho/godotenv v1.5.1
+	github.com/klauspost/compress v1.19.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/puzpuzpuz/xsync/v4 v4.5.0
 	github.com/sajari/fuzzy v1.0.0
@@ -90,7 +91,6 @@ require (
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.73 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-version v1.9.0 // indirect
-	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
