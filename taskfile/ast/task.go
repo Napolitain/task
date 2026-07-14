@@ -39,6 +39,7 @@ type Task struct {
 	Prefix        string `hash:"ignore"`
 	IgnoreError   bool
 	UseGitignore  *bool
+	Cache         bool
 	Run           string
 	Platforms     []*Platform
 	If            string
@@ -158,6 +159,7 @@ func (t *Task) UnmarshalYAML(node *yaml.Node) error {
 			Prefix        string
 			IgnoreError   bool  `yaml:"ignore_error"`
 			UseGitignore  *bool `yaml:"use_gitignore,omitempty"`
+			Cache         bool
 			Run           string
 			Platforms     []*Platform
 			If            string
@@ -199,6 +201,7 @@ func (t *Task) UnmarshalYAML(node *yaml.Node) error {
 		t.Prefix = task.Prefix
 		t.IgnoreError = task.IgnoreError
 		t.UseGitignore = deepcopy.Scalar(task.UseGitignore)
+		t.Cache = task.Cache
 		t.Run = task.Run
 		t.Platforms = task.Platforms
 		t.If = task.If
@@ -243,6 +246,7 @@ func (t *Task) DeepCopy() *Task {
 		Prefix:               t.Prefix,
 		IgnoreError:          t.IgnoreError,
 		UseGitignore:         deepcopy.Scalar(t.UseGitignore),
+		Cache:                t.Cache,
 		Run:                  t.Run,
 		IncludeVars:          t.IncludeVars.DeepCopy(),
 		IncludedTaskfileVars: t.IncludedTaskfileVars.DeepCopy(),

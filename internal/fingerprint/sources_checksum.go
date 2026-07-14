@@ -17,8 +17,9 @@ import (
 // ChecksumChecker validates if a task is up to date by calculating its source
 // files checksum
 type ChecksumChecker struct {
-	tempDir string
-	dry     bool
+	tempDir      string
+	dry          bool
+	lastChecksum string
 }
 
 func NewChecksumChecker(tempDir string, dry bool) *ChecksumChecker {
@@ -29,11 +30,12 @@ func NewChecksumChecker(tempDir string, dry bool) *ChecksumChecker {
 }
 
 func (checker *ChecksumChecker) IsUpToDate(t *ast.Task) (bool, error) {
+	checker.lastChecksum = ""
 	if len(t.Sources) == 0 {
 		return false, nil
 	}
 
-	checksumFile := checker.checksumFilePath(t)
+	checksumFile := ChecksumFilePath(checker.tempDir, t)
 
 	data, _ := os.ReadFile(checksumFile)
 	oldHash := strings.TrimSpace(string(data))
@@ -42,6 +44,7 @@ func (checker *ChecksumChecker) IsUpToDate(t *ast.Task) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
+	checker.lastChecksum = newHash
 
 	if !checker.dry && oldHash != newHash {
 		_ = os.MkdirAll(filepathext.SmartJoin(checker.tempDir, "checksum"), 0o755)
@@ -73,6 +76,11 @@ func (checker *ChecksumChecker) IsUpToDate(t *ast.Task) (bool, error) {
 	return oldHash == newHash, nil
 }
 
+// LastChecksum returns the checksum calculated by the last successful check.
+func (checker *ChecksumChecker) LastChecksum() string {
+	return checker.lastChecksum
+}
+
 func (checker *ChecksumChecker) Value(t *ast.Task) (any, error) {
 	return checker.checksum(t)
 }
@@ -81,7 +89,7 @@ func (checker *ChecksumChecker) OnError(t *ast.Task) error {
 	if len(t.Sources) == 0 {
 		return nil
 	}
-	return os.Remove(checker.checksumFilePath(t))
+	return os.Remove(ChecksumFilePath(checker.tempDir, t))
 }
 
 func (*ChecksumChecker) Kind() string {
@@ -115,8 +123,9 @@ func (c *ChecksumChecker) checksum(t *ast.Task) (string, error) {
 	return fmt.Sprintf("%x%x", hash.Hi, hash.Lo), nil
 }
 
-func (checker *ChecksumChecker) checksumFilePath(t *ast.Task) string {
-	return filepath.Join(checker.tempDir, "checksum", normalizeFilename(t.Name()))
+// ChecksumFilePath returns the persisted checksum path for a task.
+func ChecksumFilePath(tempDir string, t *ast.Task) string {
+	return filepath.Join(tempDir, "checksum", normalizeFilename(t.Name()))
 }
 
 var checksumFilenameRegexp = regexp.MustCompile("[^[:alnum:]]")

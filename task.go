@@ -193,6 +193,9 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 	if err := e.areTaskRequiredVarsAllowedValuesSet(t); err != nil {
 		return err
 	}
+	if err := e.validateArtifactCacheTask(t); err != nil {
+		return err
+	}
 
 	if !e.Watch && atomic.AddInt32(e.taskCallCount[t.Task], 1) >= MaximumTaskCall {
 		return &errors.TaskCalledTooManyTimesError{
@@ -210,6 +213,7 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 			return err
 		}
 
+		var artifactCache *taskArtifactCache
 		skipFingerprinting := e.ForceAll || (!call.Indirect && e.Force)
 		if !skipFingerprinting {
 			if err := ctx.Err(); err != nil {
@@ -226,12 +230,18 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 			if t.Method != "" {
 				method = t.Method
 			}
-			upToDate, err := fingerprint.IsTaskUpToDate(ctx, t,
+			options := []fingerprint.CheckerOption{
 				fingerprint.WithMethod(method),
 				fingerprint.WithTempDir(e.TempDir.Fingerprint),
 				fingerprint.WithDry(e.Dry),
 				fingerprint.WithLogger(e.Logger),
-			)
+			}
+			var checksumChecker *fingerprint.ChecksumChecker
+			if t.Cache && !e.Dry {
+				checksumChecker = fingerprint.NewChecksumChecker(e.TempDir.Fingerprint, false)
+				options = append(options, fingerprint.WithSourcesChecker(checksumChecker))
+			}
+			upToDate, err := fingerprint.IsTaskUpToDate(ctx, t, options...)
 			if err != nil {
 				return err
 			}
@@ -246,6 +256,32 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 				}
 				return nil
 			}
+
+			if checksumChecker != nil {
+				var restored bool
+				artifactCache, restored, err = e.restoreTaskFromArtifactCache(ctx, t, checksumChecker, options...)
+				if err != nil {
+					return err
+				}
+				if restored {
+					if e.Verbose || (!call.Silent && !t.IsSilent() && !e.Taskfile.Silent && !e.Silent) {
+						e.Logger.Errf(logger.Magenta, "task: Task %q restored from cache\n", t.Name())
+					}
+					return nil
+				}
+			}
+		}
+
+		var taskSucceeded bool
+		if artifactCache != nil {
+			defer func() {
+				if !taskSucceeded {
+					return
+				}
+				if err := artifactCache.store(ctx); err != nil {
+					artifactCache.warn("store", err)
+				}
+			}()
 		}
 
 		for _, p := range t.Prompt {
@@ -289,6 +325,7 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 				return err
 			}
 		}
+		taskSucceeded = true
 		e.Logger.VerboseErrf(logger.Magenta, "task: %q finished\n", call.Task)
 		return nil
 	}); err != nil {

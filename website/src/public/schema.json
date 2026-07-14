@@ -109,6 +109,11 @@
             "$ref": "#/definitions/glob"
           }
         },
+        "cache": {
+          "description": "Stores generated files by source checksum so previous outputs can be restored. Requires `sources`, `generates`, and the `checksum` method.",
+          "type": "boolean",
+          "default": false
+        },
         "status": {
           "description": "A list of commands to check if this task should run. The task is skipped otherwise. This overrides `method`, `sources` and `generates`.",
           "type": "array",
